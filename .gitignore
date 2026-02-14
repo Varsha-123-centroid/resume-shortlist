@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# OS generated files
+Thumbs.db
+.DS_Store
+
+# Logs
+npm-debug.log*
+
+# Large files or zips
+*.zip
+*.rar
