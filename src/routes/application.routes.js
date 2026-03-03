@@ -44,7 +44,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024 } }); // 10 MB
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
-// Step 1: Upload PAN card
+// Step 1: Upload PAN card 
 router.post("/upload-pan", upload.single("pan_image"), applicationController.uploadPan);
 
 // Step 2: Upload Resume (after PAN step returns candidate_id)
