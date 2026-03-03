@@ -142,27 +142,6 @@ exports.uploadResume = async (req, res) => {
       return res.status(502).json({ status: false, message: "Resume parsing service failed", detail: err.message });
     }
 
-    /*
-      Expected resumeData shape from Python API:
-      {
-        full_name: "John Doe",
-        email: "john@example.com",
-        phone: "9876543210",
-        summary: "Experienced developer...",
-        years_of_exp: 5,
-        education: [
-          { institution: "MIT", degree: "B.Tech", start_date: "2010", end_date: "2014" }
-        ],
-        experience: [
-          { company: "Acme", title: "Developer", job_description: "...", start_date: "2014-06", end_date: "2020-01" }
-        ],
-        skills: [
-          { skill_name: "Python", skill_type: "Technology" },
-          { skill_name: "Communication", skill_type: "Skill" }
-        ]
-      }
-    */
-
     const { full_name, email, phone, summary, years_of_exp, education = [], experience = [], skills = [] } = resumeData;
 
     await conn.beginTransaction();
@@ -179,9 +158,10 @@ exports.uploadResume = async (req, res) => {
        WHERE id = ?`,
       [full_name || null, email || null, phone || null, summary || null, years_of_exp ?? null, resumePath, candidate_id]
     );
-await conn.query("DELETE FROM candidate_education WHERE candidate_id = ?", [candidate_id]);
-await conn.query("DELETE FROM candidate_experience WHERE candidate_id = ?", [candidate_id]);
-await conn.query("DELETE FROM candidate_skills WHERE candidate_id = ?", [candidate_id]);
+
+    await conn.query("DELETE FROM candidate_education WHERE candidate_id = ?", [candidate_id]);
+    await conn.query("DELETE FROM candidate_experience WHERE candidate_id = ?", [candidate_id]);
+    await conn.query("DELETE FROM candidate_skills WHERE candidate_id = ?", [candidate_id]);
 
     // ── Insert education ──
     for (const edu of education) {
@@ -192,18 +172,22 @@ await conn.query("DELETE FROM candidate_skills WHERE candidate_id = ?", [candida
     }
 
     // ── Insert experience ──
+    // FIX 1: Python API returns 'description' not 'job_description'
     for (const exp of experience) {
       await conn.query(
         "INSERT INTO candidate_experience (candidate_id, company, title, job_description, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)",
-        [candidate_id, exp.company || null, exp.title || null, exp.job_description || null, exp.start_date || null, exp.end_date || null]
+        [candidate_id, exp.company || null, exp.title || null, exp.description || exp.job_description || null, exp.start_date || null, exp.end_date || null]
       );
     }
 
     // ── Insert skills ──
+    // FIX 2: Python API returns skills as array of strings ["Python", "SQL"]
     for (const sk of skills) {
+      const skillName = typeof sk === "string" ? sk : sk.skill_name;
+      const skillType = typeof sk === "string" ? "Skill" : sk.skill_type || "Skill";
       await conn.query(
         "INSERT INTO candidate_skills (candidate_id, skill_name, skill_type) VALUES (?, ?, ?)",
-        [candidate_id, sk.skill_name || null, sk.skill_type || "Skill"]
+        [candidate_id, skillName || null, skillType]
       );
     }
 
