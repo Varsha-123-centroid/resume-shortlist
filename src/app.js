@@ -17,4 +17,7 @@ app.use("/api/auth", authRoutes);
 const jobRoutes = require("./routes/job.routes");
 app.use("/api/jobs", jobRoutes);
 
+const applyRoutes = require("./routes/application.routes");
+app.use("/api/apply", applyRoutes);
+
 module.exports = app;
