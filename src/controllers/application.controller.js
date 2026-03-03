@@ -49,8 +49,8 @@ exports.uploadPan = async (req, res) => {
         father_name: "James Doe"
       }
     */
-    const { pan_number, full_name, dob, father_name } = panData;
-
+   // const { pan_number, full_name, dob, father_name } = panData;
+const { pan_number, name: full_name, date_of_birth: dob, father_name } = panData;
     if (!pan_number) {
       return res.status(422).json({ status: false, message: "Could not extract PAN number from image" });
     }
