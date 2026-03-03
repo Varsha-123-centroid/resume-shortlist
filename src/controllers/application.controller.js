@@ -49,9 +49,9 @@ exports.uploadPan = async (req, res) => {
         father_name: "James Doe"
       }
     */
-   // const { pan_number, full_name, dob, father_name } = panData;
-//const { pan_number, name: full_name, date_of_birth: dob, father_name } = panData;
-   const dob = date_of_birth
+const { pan_number, name: full_name, date_of_birth, father_name } = panData;
+
+const dob = date_of_birth
   ? date_of_birth.split("/").reverse().join("-")
   : null;
 
