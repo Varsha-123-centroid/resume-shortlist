@@ -20,4 +20,7 @@ app.use("/api/jobs", jobRoutes);
 const applyRoutes = require("./routes/application.routes");
 app.use("/api/apply", applyRoutes);
 
+const adminRoutes = require("./routes/admin.routes");
+app.use("/api/admin", adminRoutes);
+
 module.exports = app;
