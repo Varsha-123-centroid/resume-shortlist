@@ -38,6 +38,7 @@ exports.createJob = async (req, res) => {
       experience_required,
       location,
       description,
+      is_premium
     } = req.body;
 
     // ── Required field validation ──
@@ -50,8 +51,8 @@ exports.createJob = async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO jobs 
-        (title, company, salary, department, skill_required, experience_required, location, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        (title, company, salary, department, skill_required, experience_required, location, description, is_premium)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)`,
       [
         title,
         company,
@@ -61,6 +62,7 @@ exports.createJob = async (req, res) => {
         experience_required || null,
         location || null,
         description || null,
+        is_premium ? 1 : 0
       ]
     );
 
@@ -99,6 +101,7 @@ exports.updateJob = async (req, res) => {
       experience_required,
       location,
       description,
+      is_premium
     } = req.body;
 
     await pool.query(
@@ -110,7 +113,8 @@ exports.updateJob = async (req, res) => {
         skill_required      = COALESCE(?, skill_required),
         experience_required = COALESCE(?, experience_required),
         location            = COALESCE(?, location),
-        description         = COALESCE(?, description)
+        description         = COALESCE(?, description),
+        is_premium          = CASE WHEN ? IS NOT NULL THEN ? ELSE is_premium END
        WHERE id = ?`,
       [
         title || null,
@@ -121,6 +125,7 @@ exports.updateJob = async (req, res) => {
         experience_required || null,
         location || null,
         description || null,
+        is_premium !== undefined ? (is_premium ? 1 : 0) : null,
         id,
       ]
     );
