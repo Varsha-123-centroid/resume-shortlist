@@ -87,56 +87,39 @@ exports.updateJob = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check job exists
     const [existing] = await pool.query("SELECT id FROM jobs WHERE id = ?", [id]);
     if (existing.length === 0)
       return res.status(404).json({ status: false, message: "Job not found" });
 
     const {
-      title,
-      company,
-      salary,
-      department,
-      skill_required,
-      experience_required,
-      location,
-      description,
-      is_premium
+      title, company, salary, department,
+      skill_required, experience_required,
+      location, description, is_premium
     } = req.body;
 
-    await pool.query(
-      `UPDATE jobs SET
-        title               = COALESCE(?, title),
-        company             = COALESCE(?, company),
-        salary              = COALESCE(?, salary),
-        department          = COALESCE(?, department),
-        skill_required      = COALESCE(?, skill_required),
-        experience_required = COALESCE(?, experience_required),
-        location            = COALESCE(?, location),
-        description         = COALESCE(?, description),
-        is_premium          = CASE WHEN ? IS NOT NULL THEN ? ELSE is_premium END
-       WHERE id = ?`,
-      [
-        title || null,
-        company || null,
-        salary || null,
-        department || null,
-        skill_required || null,
-        experience_required || null,
-        location || null,
-        description || null,
-        is_premium !== undefined ? (is_premium ? 1 : 0) : null,
-        id,
-      ]
-    );
+    // Build query dynamically to avoid CASE WHEN issue
+    const fields = [];
+    const values = [];
+
+    if (title !== undefined)               { fields.push("title = ?");               values.push(title); }
+    if (company !== undefined)             { fields.push("company = ?");             values.push(company); }
+    if (salary !== undefined)              { fields.push("salary = ?");              values.push(salary); }
+    if (department !== undefined)          { fields.push("department = ?");          values.push(department); }
+    if (skill_required !== undefined)      { fields.push("skill_required = ?");      values.push(skill_required); }
+    if (experience_required !== undefined) { fields.push("experience_required = ?"); values.push(experience_required); }
+    if (location !== undefined)            { fields.push("location = ?");            values.push(location); }
+    if (description !== undefined)         { fields.push("description = ?");         values.push(description); }
+    if (is_premium !== undefined)          { fields.push("is_premium = ?");          values.push(is_premium ? 1 : 0); }
+
+    if (fields.length === 0)
+      return res.status(400).json({ status: false, message: "No fields to update" });
+
+    values.push(id);
+    await pool.query(`UPDATE jobs SET ${fields.join(", ")} WHERE id = ?`, values);
 
     const [updated] = await pool.query("SELECT * FROM jobs WHERE id = ?", [id]);
 
-    res.json({
-      status: true,
-      message: "Job updated successfully",
-      data: updated[0],
-    });
+    res.json({ status: true, message: "Job updated successfully", data: updated[0] });
   } catch (error) {
     console.error("updateJob error:", error);
     res.status(500).json({ status: false, message: "Failed to update job", detail: error.message });
