@@ -142,23 +142,43 @@ exports.uploadResume = async (req, res) => {
       return res.status(502).json({ status: false, message: "Resume parsing service failed", detail: err.message });
     }
 
-    const { full_name, email, phone, summary, years_of_exp, education = [], experience = [], skills = [] } = resumeData;
-
+   // const { full_name, email, phone, summary, years_of_exp, education = [], experience = [], skills = [] } = resumeData;
+const { 
+  full_name, email, phone, summary, 
+  years_of_experience,           // ← Python returns this key
+  education = [], experience = [], skills = [], technologies = []
+} = resumeData;
+//const years_of_exp = years_of_experience ?? null; 
+const years_of_exp = (() => {
+  const val = years_of_experience;
+  if (!val) return null;
+  if (typeof val === "number") return val;
+  // Extract first number from strings like "16 years", "16+", "16-18 years"
+  const match = String(val).match(/\d+/);
+  return match ? parseInt(match[0]) : null;
+})();
     await conn.beginTransaction();
 
     // ── Update candidates row ──
     await conn.query(
-      `UPDATE candidates
-       SET full_name = COALESCE(?, full_name),
-           email     = COALESCE(?, email),
-           phone     = COALESCE(?, phone),
-           summary   = COALESCE(?, summary),
-           years_of_exp = COALESCE(?, years_of_exp),
-           resume_path = ?
-       WHERE id = ?`,
-      [full_name || null, email || null, phone || null, summary || null, years_of_exp ?? null, resumePath, candidate_id]
-    );
-
+  `UPDATE candidates
+   SET full_name    = COALESCE(?, full_name),
+       email        = COALESCE(?, email),
+       phone        = COALESCE(?, phone),
+       summary      = COALESCE(?, summary),
+       years_of_exp = COALESCE(?, years_of_exp),
+       resume_path  = ?
+   WHERE id = ?`,
+  [
+    full_name || null, 
+    email     || null, 
+    phone     || null, 
+    summary   || null, 
+    years_of_exp,       // ← now correctly mapped from years_of_experience
+    resumePath, 
+    candidate_id
+  ]
+);
     await conn.query("DELETE FROM candidate_education WHERE candidate_id = ?", [candidate_id]);
     await conn.query("DELETE FROM candidate_experience WHERE candidate_id = ?", [candidate_id]);
     await conn.query("DELETE FROM candidate_skills WHERE candidate_id = ?", [candidate_id]);
@@ -182,14 +202,19 @@ exports.uploadResume = async (req, res) => {
 
     // ── Insert skills ──
     // FIX 2: Python API returns skills as array of strings ["Python", "SQL"]
-    for (const sk of skills) {
-      const skillName = typeof sk === "string" ? sk : sk.skill_name;
-      const skillType = typeof sk === "string" ? "Skill" : sk.skill_type || "Skill";
-      await conn.query(
-        "INSERT INTO candidate_skills (candidate_id, skill_name, skill_type) VALUES (?, ?, ?)",
-        [candidate_id, skillName || null, skillType]
-      );
-    }
+    const allSkills = [
+  ...skills,
+  ...technologies.map(t => ({ skill_name: t, skill_type: "Technology" }))
+];
+
+for (const sk of allSkills) {
+  const skillName = typeof sk === "string" ? sk : sk.skill_name;
+  const skillType = typeof sk === "string" ? "Skill" : sk.skill_type || "Skill";
+  await conn.query(
+    "INSERT INTO candidate_skills (candidate_id, skill_name, skill_type) VALUES (?, ?, ?)",
+    [candidate_id, skillName || null, skillType]
+  );
+}
 
     // ── Create job application record ──
     // Avoid duplicate applications for the same job
