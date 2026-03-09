@@ -200,12 +200,26 @@ if (email) {
 
     // ── Insert experience ──
     // FIX 1: Python API returns 'description' not 'job_description'
-    for (const exp of experience) {
-      await conn.query(
-        "INSERT INTO candidate_experience (candidate_id, company, title, job_description, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?)",
-        [candidate_id, exp.company || null, exp.title || null, exp.description || exp.job_description || null, exp.start_date || null, exp.end_date || null]
-      );
-    }
+for (const exp of experience) {
+  try {
+    await conn.query(
+      `INSERT INTO candidate_experience 
+        (candidate_id, company, title, job_description, start_date, end_date) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        candidate_id,
+        exp.company      || null,
+        exp.title        || null,
+        exp.description  || exp.job_description || null,
+        exp.start_date   || null,
+        exp.end_date     || null
+      ]
+    );
+  } catch (expErr) {
+    console.error("Experience insert error:", expErr.message);
+    // Skip failed experience row, don't crash whole upload
+  }
+}
 
     // ── Insert skills ──
     // FIX 2: Python API returns skills as array of strings ["Python", "SQL"]
