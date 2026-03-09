@@ -160,25 +160,32 @@ const years_of_exp = (() => {
     await conn.beginTransaction();
 
     // ── Update candidates row ──
-    await conn.query(
+  await conn.query(
   `UPDATE candidates
    SET full_name    = COALESCE(?, full_name),
-       email        = COALESCE(?, email),
        phone        = COALESCE(?, phone),
        summary      = COALESCE(?, summary),
        years_of_exp = COALESCE(?, years_of_exp),
        resume_path  = ?
    WHERE id = ?`,
   [
-    full_name || null, 
-    email     || null, 
-    phone     || null, 
-    summary   || null, 
-    years_of_exp,       // ← now correctly mapped from years_of_experience
-    resumePath, 
+    full_name || null,
+    phone     || null,
+    summary   || null,
+    years_of_exp,
+    resumePath,
     candidate_id
   ]
 );
+// ── Email update separately to avoid duplicate key error ──
+if (email) {
+  const [emailCheck] = await conn.query(
+    "SELECT id FROM candidates WHERE email = ? AND id != ?", [email, candidate_id]
+  );
+  if (emailCheck.length === 0) {
+    await conn.query("UPDATE candidates SET email = ? WHERE id = ?", [email, candidate_id]);
+  }
+}
     await conn.query("DELETE FROM candidate_education WHERE candidate_id = ?", [candidate_id]);
     await conn.query("DELETE FROM candidate_experience WHERE candidate_id = ?", [candidate_id]);
     await conn.query("DELETE FROM candidate_skills WHERE candidate_id = ?", [candidate_id]);
