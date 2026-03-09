@@ -91,14 +91,31 @@ exports.generateShortlist = async (req, res) => {
       );
       selectedCandidates = valid.map(r => r.candidate_id);
     } else {
-      const [auto] = await conn.query(
-        `SELECT ja.candidate_id FROM job_applications ja
-         JOIN candidates c ON c.id = ja.candidate_id
-         WHERE ja.job_id = ? ORDER BY c.years_of_exp DESC, ja.application_date ASC`,
-        [job_id]
-      );
-      selectedCandidates = auto.map(r => r.candidate_id);
-    }
+  // Fetch job requirements
+  const [jobDetail] = await conn.query(
+    "SELECT experience_required, skill_required FROM jobs WHERE id = ?", [job_id]
+  );
+
+  // Parse minimum years from "2-4 years" or "3+" → extract first number
+  let minYears = 0;
+  if (jobDetail[0]?.experience_required) {
+    const match = jobDetail[0].experience_required.match(/\d+/);
+    if (match) minYears = parseInt(match[0]);
+  }
+
+  const [auto] = await conn.query(
+    `SELECT ja.candidate_id FROM job_applications ja
+     JOIN candidates c ON c.id = ja.candidate_id
+     WHERE ja.job_id = ?
+       AND c.resume_path IS NOT NULL
+       AND c.email IS NOT NULL
+       AND c.full_name IS NOT NULL
+       AND (c.years_of_exp IS NULL OR c.years_of_exp >= ?)
+     ORDER BY c.years_of_exp DESC, ja.application_date ASC`,
+    [job_id, minYears]
+  );
+  selectedCandidates = auto.map(r => r.candidate_id);
+}
 
     if (selectedCandidates.length === 0) {
       await conn.rollback();
